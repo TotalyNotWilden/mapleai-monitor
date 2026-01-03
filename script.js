@@ -297,4 +297,72 @@ function updateChart(usageData) {
 
     // Add summary stats
     const summaryHtml = `
-        <div style="display:
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-top: 20px;">
+            <div style="text-align: center; background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                <div style="font-size: 1.5em; font-weight: 700; color: #f8fafc;">${totalPeriodUsage}</div>
+                <div style="font-size: 0.85em; opacity: 0.7; color: #94a3b8;">Total</div>
+            </div>
+            <div style="text-align: center; background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                <div style="font-size: 1.5em; font-weight: 700; color: #f8fafc;">${avgUsage}</div>
+                <div style="font-size: 0.85em; opacity: 0.7; color: #94a3b8;">Average</div>
+            </div>
+            <div style="text-align: center; background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                <div style="font-size: 1.5em; font-weight: 700; color: #f8fafc;">${maxUsage}</div>
+                <div style="font-size: 0.85em; opacity: 0.7; color: #94a3b8;">Max</div>
+            </div>
+            <div style="text-align: center; background: rgba(15, 23, 42, 0.4); padding: 15px; border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                <div style="font-size: 1.5em; font-weight: 700; color: #f8fafc;">${trend}</div>
+                <div style="font-size: 0.85em; opacity: 0.7; color: #94a3b8;">Trend</div>
+            </div>
+        </div>
+    `;
+    
+    // Add summary to chart container
+    const chartContainer = document.querySelector('.chart-container');
+    const existingSummary = chartContainer.querySelector('.chart-summary');
+    if (existingSummary) {
+        existingSummary.remove();
+    }
+    
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'chart-summary fade-in';
+    summaryDiv.innerHTML = summaryHtml;
+    chartContainer.appendChild(summaryDiv);
+}
+
+// Show dashboard
+function showDashboard() {
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('refreshBtn').style.display = 'flex';
+}
+
+// Show error
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+        hideError();
+    }, 5000);
+}
+
+// Hide error
+function hideError() {
+    document.getElementById('errorMessage').style.display = 'none';
+}
+
+// Handle Enter key
+document.getElementById('apiToken').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        loadData();
+    }
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
