@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkServiceStatus();
     
     // Periodically check service status
-    serviceStatusInterval = setInterval(() => checkServiceStatus(), 60000); // Check every 60 seconds
+    serviceStatusInterval = setInterval(() => checkServiceStatus(), 60000);
 });
 
 // Check service status (no token required)
@@ -35,16 +35,22 @@ async function checkServiceStatus() {
         });
         
         if (!response.ok) {
-            throw new Error('Service unavailable');
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('✅ Service Status API Response:', data);
+        
+        // Validate response structure
+        if (!data || typeof data !== 'object') {
+            throw new Error('Invalid service response format');
+        }
         
         // Show service status
         serviceStatusDiv.style.display = 'flex';
         statusDot.className = 'status-dot active';
-        statusText.textContent = `Service ${data.status} - ${data.requests.toLocaleString()} requests served`;
-        envBadge.textContent = data.environment;
+        statusText.textContent = `Service ${data.status} - ${data.requests?.toLocaleString() || 0} requests served`;
+        envBadge.textContent = data.environment || 'unknown';
         
         // Store global stats for dashboard
         globalServiceData = data;
@@ -63,7 +69,7 @@ async function checkServiceStatus() {
         envBadge.style.borderColor = 'rgba(248, 113, 113, 0.3)';
         envBadge.style.color = '#fecaca';
         
-        console.error('Service status check failed:', error);
+        console.error('❌ Service status check failed:', error);
     }
 }
 
@@ -146,12 +152,27 @@ async function fetchData() {
             })
         ]);
 
-        if (!keyInfo.ok || !usageHistory.ok) {
-            throw new Error('API request failed. Please check your token.');
+        // Check if responses are ok
+        if (!keyInfo.ok) {
+            throw new Error(`Key info API error: HTTP ${keyInfo.status} - ${keyInfo.statusText}`);
+        }
+        if (!usageHistory.ok) {
+            throw new Error(`Usage history API error: HTTP ${usageHistory.status} - ${usageHistory.statusText}`);
         }
 
         const keyData = await keyInfo.json();
         const usageData = await usageHistory.json();
+        
+        console.log('✅ Key Info API Response:', keyData);
+        console.log('✅ Usage History API Response:', usageData);
+        
+        // Validate response structures
+        if (!keyData || typeof keyData !== 'object') {
+            throw new Error('Invalid key info response format');
+        }
+        if (!usageData || typeof usageData !== 'object' || !Array.isArray(usageData.data) || !Array.isArray(usageData.labels)) {
+            throw new Error('Invalid usage history response format');
+        }
 
         updateDashboard(keyData, usageData);
         showDashboard();
@@ -165,6 +186,7 @@ async function fetchData() {
             autoRefreshInterval = setInterval(() => fetchData(), 30000); // Refresh every 30 seconds
         }
     } catch (error) {
+        console.error('❌ Fetch error:', error);
         showError(error.message);
         statusDot.className = 'status-dot error';
         statusText.textContent = 'Error';
@@ -186,18 +208,18 @@ function refreshData() {
 function updateDashboard(keyData, usageData) {
     // Update user info
     const userInfoHtml = `
-        <h2>👤 User: ${keyData.username} 
-            <span class="plan-badge">${keyData.plan}</span>
+        <h2>👤 User: ${keyData.username || 'Unknown'} 
+            <span class="plan-badge">${keyData.plan || 'Free'}</span>
             ${keyData.admin ? '<span style="margin-left: 10px;">👑</span>' : ''}
         </h2>
         <div class="user-details">
             <div class="user-detail-item">
                 <div class="user-detail-label">Username</div>
-                <div class="user-detail-value">@${keyData.username}</div>
+                <div class="user-detail-value">@${keyData.username || 'unknown'}</div>
             </div>
             <div class="user-detail-item">
                 <div class="user-detail-label">Plan</div>
-                <div class="user-detail-value">${keyData.plan}</div>
+                <div class="user-detail-value">${keyData.plan || 'Unknown'}</div>
             </div>
             <div class="user-detail-item">
                 <div class="user-detail-label">Admin Status</div>
@@ -226,9 +248,12 @@ function updateDashboard(keyData, usageData) {
     // Update RPD
     updateRateCard('rpd', keyData.rpd, keyData.rpd_used, 'RPD');
 
-    // Update total usage
-    document.getElementById('totalUsage').textContent = keyData.total_usage.toLocaleString();
-    document.getElementById('totalTokens').textContent = parseInt(keyData.total_tokens_used).toLocaleString();
+    // Update total usage with safety checks
+    const totalUsage = keyData.total_usage || 0;
+    const totalTokens = keyData.total_tokens_used || 0;
+    
+    document.getElementById('totalUsage').textContent = totalUsage.toLocaleString();
+    document.getElementById('totalTokens').textContent = parseInt(totalTokens).toLocaleString();
 
     // Update usage history chart
     updateChart(usageData);
@@ -246,15 +271,15 @@ function updateGlobalStats() {
         <h3>🌍 Global Service Statistics</h3>
         <div class="global-stats-content">
             <div class="global-stat-item">
-                <div class="global-stat-value">${data.requests.toLocaleString()}</div>
+                <div class="global-stat-value">${data.requests?.toLocaleString() || 0}</div>
                 <div class="global-stat-label">Total Requests</div>
             </div>
             <div class="global-stat-item">
-                <div class="global-stat-value">${parseInt(data.total_tokens_used).toLocaleString()}</div>
+                <div class="global-stat-value">${parseInt(data.total_tokens_used || 0).toLocaleString()}</div>
                 <div class="global-stat-label">Total Tokens Used</div>
             </div>
             <div class="global-stat-item">
-                <div class="global-stat-value">${data.endpoints.length}</div>
+                <div class="global-stat-value">${data.endpoints?.length || 0}</div>
                 <div class="global-stat-label">Available Endpoints</div>
             </div>
         </div>
@@ -265,18 +290,19 @@ function updateGlobalStats() {
     globalStatsDiv.style.display = 'block';
 
     // Update global stats in the stats grid too
-    document.getElementById('globalRequests').textContent = data.requests.toLocaleString();
-    document.getElementById('globalTokens').textContent = parseInt(data.total_tokens_used).toLocaleString();
+    document.getElementById('globalRequests').textContent = data.requests?.toLocaleString() || 0;
+    document.getElementById('globalTokens').textContent = parseInt(data.total_tokens_used || 0).toLocaleString();
 
     // Update endpoints list
     const endpointsList = document.getElementById('endpointsList');
     const endpointCount = document.getElementById('endpointCount');
     
-    endpointsList.innerHTML = data.endpoints.map(endpoint => 
-        `<div class="endpoint-item">${endpoint}</div>`
-    ).join('');
-    
-    endpointCount.textContent = `${data.endpoints.length} endpoints available`;
+    if (data.endpoints && Array.isArray(data.endpoints)) {
+        endpointsList.innerHTML = data.endpoints.map(endpoint => 
+            `<div class="endpoint-item">${endpoint}</div>`
+        ).join('');
+        endpointCount.textContent = `${data.endpoints.length} endpoints available`;
+    }
     
     // Show endpoints section
     document.getElementById('endpointsSection').style.display = 'block';
@@ -299,9 +325,9 @@ function updateRateCard(type, limit, used, label) {
         value.textContent = '∞';
         progress.style.display = 'none';
     } else {
-        const limitNum = parseInt(limit);
-        const usedNum = parseInt(used);
-        const percentage = (usedNum / limitNum) * 100;
+        const limitNum = parseInt(limit) || 0;
+        const usedNum = parseInt(used) || 0;
+        const percentage = limitNum > 0 ? (usedNum / limitNum) * 100 : 0;
         
         card.className = 'stat-card';
         badge.textContent = label;
@@ -329,6 +355,12 @@ function updateRateCard(type, limit, used, label) {
 // Update chart
 function updateChart(usageData) {
     const ctx = document.getElementById('usageChart').getContext('2d');
+    
+    // Validate data
+    if (!usageData || !Array.isArray(usageData.data) || !Array.isArray(usageData.labels)) {
+        console.error('❌ Invalid usage data structure:', usageData);
+        return;
+    }
     
     // Calculate total usage for the period
     const totalPeriodUsage = usageData.data.reduce((a, b) => a + b, 0);
