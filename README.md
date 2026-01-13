@@ -1,0 +1,1 @@
+this is a redesigned version of redisnotblue's vibecoded mapleai monitor. this is also vibecoded, but looks better, and is base don liquid glass ui. don't get mad at me for vibecoding, this is just a better ui for a quick ui to monitor mapleai. u don' have to use this is vibecoding disgusts you, this is juts a quick way without hvint to spend hours coding it urslf.
